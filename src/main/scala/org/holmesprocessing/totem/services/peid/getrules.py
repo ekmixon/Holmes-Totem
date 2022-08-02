@@ -23,10 +23,11 @@ def main():
     # Parse configuration options
     if cfg.has_section('yara_rules'):
         rule_location = cfg['yara_rules'].get('local_path', fallback='rules.yar')
-        get_remote    = cfg['yara_rules'].getboolean('get_remote', fallback=False)
-        if get_remote:
+        if get_remote := cfg['yara_rules'].getboolean(
+            'get_remote', fallback=False
+        ):
             DownloadFile(cfg['yara_rules'].get('download_url'), rule_location)
-            
+
     else:
         print("Configuration Error: Cannot find yara_rules section in"
             "service.conf. Using default values.")

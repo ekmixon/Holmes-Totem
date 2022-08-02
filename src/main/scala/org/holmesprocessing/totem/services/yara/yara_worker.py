@@ -19,8 +19,7 @@ import json
 def ServiceConfig(filename):
     configPath = filename
     try:
-        config = json.loads(open(configPath).read())
-        return config
+        return json.loads(open(configPath).read())
     except FileNotFoundError:
         raise tornado.web.HTTPError(500)
     

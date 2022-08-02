@@ -42,20 +42,14 @@ def generateCFG(binary, max_size, analysisType = 'Fast'):
         instructions = project.factory.block(addr=node.addr).capstone.insns
         a = []
         for ins in instructions:
-            b = {}
-            b['addr'] = ins.address
-            b['mnemonic'] = ins.mnemonic
-            b['operand'] = ins.op_str
+            b = {'addr': ins.address, 'mnemonic': ins.mnemonic, 'operand': ins.op_str}
             a.append(b)
         node.label = a
 
     networkxGraph = cfg.graph
     graph = _truncateGraph(networkxGraph)
 
-    # Convert networkx graph to JSON
-    graph_json = json_graph.node_link_data(graph)
-
-    return graph_json
+    return json_graph.node_link_data(graph)
 
 
 def _truncateGraph(cfg):
@@ -67,7 +61,7 @@ def _truncateGraph(cfg):
     # Update the nodes
     for n in cfg.nodes():
         if n not in lookup:
-            new_node = str(sequence) + ' ' + repr(n.addr) +  ' ' + str(n.name)
+            new_node = f'{str(sequence)} {repr(n.addr)} {str(n.name)}'
             sequence += 1
             lookup[n] = new_node
             graph.add_node(new_node, label = n.label, syscall = n.syscall)

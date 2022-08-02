@@ -47,7 +47,7 @@ class RichLibrary:
     def generate_csum(self, raw_dat, compids, off):
         csum = off
 
-        for i in range(off):
+        for i in range(csum):
             ## Mask out the e_lfanew field as it's not initialized yet
             if i in range(0x3c, 0x40):
                 continue
@@ -63,7 +63,7 @@ class RichLibrary:
         dat = open(self.fname, 'rb').read()
 
         ## Do basic sanity checks on the PE
-        if dat[0:][:2] != b'MZ':
+        if dat[:][:2] != b'MZ':
             raise MZSignatureError()
 
         e_lfanew = self.__u32(dat[0x3c:][:4])
@@ -94,7 +94,7 @@ class RichLibrary:
         dans = e_lfanew - len(upack) * 4 - (e_lfanew - rich)
 
         ## DanS is _always_ followed by three zero dwords
-        if not all([upack[i] == 0 for i in range(1, 4)]):
+        if any(upack[i] != 0 for i in range(1, 4)):
             raise PaddingError()
 
         upack = upack[4:]
@@ -102,13 +102,14 @@ class RichLibrary:
         if len(upack) & 1:
             raise RichLengthError()
 
-        cmpids = []
-        for i in range(0, len(upack), 2):
-            cmpids.append({
-                'mcv': (upack[i + 0] >>  0) & 0xffff,
-                'pid': (upack[i + 0] >> 16) & 0xffff,
-                'cnt': (upack[i + 1] >>  0)
-            })
+        cmpids = [
+            {
+                'mcv': (upack[i + 0] >> 0) & 0xFFFF,
+                'pid': (upack[i + 0] >> 16) & 0xFFFF,
+                'cnt': (upack[i + 1] >> 0),
+            }
+            for i in range(0, len(upack), 2)
+        ]
 
         ## Bonus feature: Calculate and check the check sum csum
         chk = self.generate_csum(dat, cmpids, dans)

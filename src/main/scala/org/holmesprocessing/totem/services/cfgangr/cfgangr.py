@@ -17,8 +17,7 @@ import json
 def ServiceConfig(filename):
     configPath = filename
     try:
-        config = json.loads(open(configPath).read())
-        return config
+        return json.loads(open(configPath).read())
     except FileNotFoundError:
         raise tornado.web.HTTPError(500)
 
@@ -33,9 +32,7 @@ Metadata = {
 
 
 def CFGAngrRun(binary, size):
-    # Returns the CFG of a binary in JSON format
-    data = convertbinary.generateCFG(binary, size)
-    return data
+    return convertbinary.generateCFG(binary, size)
 
 
 class CFGAngrProcess(tornado.web.RequestHandler):

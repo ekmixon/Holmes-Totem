@@ -13,7 +13,7 @@ def parse(fname):
     dat = open(fname, 'rb').read()
 
     ## Do basic sanity checks on the PE
-    if dat[0:][:2] != b'MZ':
+    if dat[:][:2] != b'MZ':
         return {'err': -2}
 
     e_lfanew = u32(dat[0x3c:][:4])
@@ -44,7 +44,7 @@ def parse(fname):
     dans = e_lfanew - len(upack) * 4 - (e_lfanew - rich)
 
     ## DanS is _always_ followed by three zero dwords
-    if not all([upack[i] == 0 for i in range(1, 4)]):
+    if any(upack[i] != 0 for i in range(1, 4)):
         return {'err': -6}
 
     upack = upack[4:]
@@ -119,7 +119,7 @@ def pprint_header(data):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: {} <pe-file.exe>".format(sys.argv[0]))
+        print(f"Usage: {sys.argv[0]} <pe-file.exe>")
         sys.exit(-1)
     rich = parse(sys.argv[1])
     if rich['err'] < 0:

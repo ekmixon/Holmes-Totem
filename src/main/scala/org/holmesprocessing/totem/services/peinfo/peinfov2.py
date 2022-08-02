@@ -23,8 +23,7 @@ Metadata = {
 def ServiceConfig(filename):
     configPath = filename
     try:
-        config = json.loads(open(configPath).read())
-        return config
+        return json.loads(open(configPath).read())
     except FileNotFoundError:
         raise tornado.web.HTTPError(500)
 
@@ -34,8 +33,7 @@ def retrieve_flags(flag_dict, flag_filter):
     return [(f[0], f[1]) for f in list(flag_dict.items()) if isinstance(f[0], (str, bytes)) and f[0].startswith(flag_filter)]
 
 def _headers(exe):
-    headers = {}
-    headers['DOS_HEADER'] = exe.DOS_HEADER.dump_dict()
+    headers = {'DOS_HEADER': exe.DOS_HEADER.dump_dict()}
     headers['NT_HEADERS'] = exe.NT_HEADERS.dump_dict()
     headers['FILE_HEADER'] = exe.FILE_HEADER.dump_dict()
 
@@ -57,12 +55,12 @@ def _sections(exe):
     return sections_list
 
 def _dll_characteristics_flags(exe):
-    data = []
     dll_characteristics_flags = retrieve_flags(pefile.DLL_CHARACTERISTICS, 'IMAGE_DLLCHARACTERISTICS_') # access the global variable from pefile
-    for flag in dll_characteristics_flags:
-        if getattr(exe.OPTIONAL_HEADER, flag[0]):
-            data.append(flag[0])
-    return data
+    return [
+        flag[0]
+        for flag in dll_characteristics_flags
+        if getattr(exe.OPTIONAL_HEADER, flag[0])
+    ]
 
 def _dataDirectories(exe):
     directories = []
@@ -72,34 +70,32 @@ def _dataDirectories(exe):
     return directories
 
 def _directory_bound_imports(exe):
-    data = list()
+    data = []
     for bound_imp_desc in exe.DIRECTORY_ENTRY_BOUND_IMPORT:
-        bound_imp_desc_dict = dict()
+        bound_imp_desc_dict = {}
         data['Bound imports'].append(bound_imp_desc_dict)
 
-        bound_imp_desc_dict.update(bound_imp_desc.struct.dump_dict())
+        bound_imp_desc_dict |= bound_imp_desc.struct.dump_dict()
         bound_imp_desc_dict['DLL'] = bound_imp_desc.name
 
         for bound_imp_ref in bound_imp_desc.entries:
-            bound_imp_ref_dict = dict()
-            bound_imp_ref_dict.update(bound_imp_ref.struct.dump_dict())
+            bound_imp_ref_dict = {}
+            bound_imp_ref_dict |= bound_imp_ref.struct.dump_dict()
             bound_imp_ref_dict['DLL'] = bound_imp_ref.name
 
     return data
 
 def _imported_symbols(exe):
-    data = list()
+    data = []
     for module in exe.DIRECTORY_ENTRY_IMPORT:
         import_list = []
         data.append(import_list)
         import_list.append(module.struct.dump_dict())
         for symbol in module.imports:
-            symbol_dict = {}
+            symbol_dict = {'DLL': module.dll}
             if symbol.import_by_ordinal is True:
-                symbol_dict['DLL'] = module.dll
                 symbol_dict['Ordinal'] = symbol.ordinal
             else:
-                symbol_dict['DLL'] = module.dll
                 symbol_dict['Name'] = symbol.name
                 symbol_dict['Hint'] = symbol.hint
 
@@ -109,13 +105,13 @@ def _imported_symbols(exe):
     return data
 
 def _relocations_directory(exe):
-    data = list()
+    data = []
     for base_reloc in exe.DIRECTORY_ENTRY_BASERELOC:
-        base_reloc_list = list()
+        base_reloc_list = []
         data.append(base_reloc_list)
         base_reloc_list.append(base_reloc.struct.dump_dict())
         for reloc in base_reloc.entries:
-            reloc_dict = dict()
+            reloc_dict = {}
             base_reloc_list.append(reloc_dict)
             reloc_dict['RVA'] = reloc.rva
             try:
@@ -125,20 +121,18 @@ def _relocations_directory(exe):
     return data
 
 def _debug_Directory(exe):
-    data = list()
+    data = []
     for dbg in exe.DIRECTORY_ENTRY_DEBUG:
-        dbg_dict = dict()
+        dbg_dict = {}
         data.append(dbg_dict)
-        dbg_dict.update(dbg.struct.dump_dict())
+        dbg_dict |= dbg.struct.dump_dict()
         dbg_dict['Type'] = pefile.DEBUG_TYPE.get(dbg.struct.Type, dbg.struct.Type)
     return data
 
 def _resources_data_entry(exe):
-    data = list()
-    data.append(exe.DIRECTORY_ENTRY_RESOURCE.struct.dump_dict())
-
+    data = [exe.DIRECTORY_ENTRY_RESOURCE.struct.dump_dict()]
     for resource_type in exe.DIRECTORY_ENTRY_RESOURCE.entries:
-        resource_type_dict = dict()
+        resource_type_dict = {}
 
         if resource_type.name is not None:
             resource_type_dict['Name'] = resource_type.name
@@ -146,83 +140,89 @@ def _resources_data_entry(exe):
             resource_type_dict['Id'] = (
                 resource_type.struct.Id, pefile.RESOURCE_TYPE.get(resource_type.struct.Id, '-'))
 
-        resource_type_dict.update(resource_type.struct.dump_dict())
+        resource_type_dict |= resource_type.struct.dump_dict()
         data.append(resource_type_dict)
 
         if hasattr(resource_type, 'directory'):
-            directory_list = list()
-            directory_list.append(resource_type.directory.struct.dump_dict())
+            directory_list = [resource_type.directory.struct.dump_dict()]
             data.append(directory_list)
 
             for resource_id in resource_type.directory.entries:
-                resource_id_dict = dict()
+                resource_id_dict = {}
 
                 if resource_id.name is not None:
                     resource_id_dict['Name'] = resource_id.name
                 else:
                     resource_id_dict['Id'] = resource_id.struct.Id
 
-                resource_id_dict.update(resource_id.struct.dump_dict())
+                resource_id_dict |= resource_id.struct.dump_dict()
                 directory_list.append(resource_id_dict)
 
                 if hasattr(resource_id, 'directory'):
-                    resource_id_list = list()
-                    resource_id_list.append(resource_id.directory.struct.dump_dict())
+                    resource_id_list = [resource_id.directory.struct.dump_dict()]
                     directory_list.append(resource_id_list)
 
                     for resource_lang in resource_id.directory.entries:
                         if hasattr(resource_lang, 'data'):
-                            resource_lang_dict = dict()
-                            resource_lang_dict['LANG'] = resource_lang.data.lang
-                            resource_lang_dict['SUBLANG'] = resource_lang.data.sublang
-                            resource_lang_dict['LANG_NAME'] = pefile.LANG.get(resource_lang.data.lang, '*unknown*')
+                            resource_lang_dict = {
+                                'LANG': resource_lang.data.lang,
+                                'SUBLANG': resource_lang.data.sublang,
+                                'LANG_NAME': pefile.LANG.get(
+                                    resource_lang.data.lang, '*unknown*'
+                                ),
+                            }
+
                             resource_lang_dict['SUBLANG_NAME'] = pefile.get_sublang_name_for_lang(resource_lang.data.lang, resource_lang.data.sublang)
-                            resource_lang_dict.update(resource_lang.struct.dump_dict())
+                            resource_lang_dict |= resource_lang.struct.dump_dict()
                             resource_lang_dict.update(resource_lang.data.struct.dump_dict())
                             resource_id_list.append(resource_lang_dict)
                     if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
-                        for idx, res_string in list(resource_id.directory.strings.items()):
-                            resource_id_list.append(res_string.encode(
-                                    'unicode-escape',
-                                    'backslashreplace').decode(
-                                        'ascii'))       
+                        resource_id_list.extend(
+                            res_string.encode(
+                                'unicode-escape', 'backslashreplace'
+                            ).decode('ascii')
+                            for idx, res_string in list(
+                                resource_id.directory.strings.items()
+                            )
+                        )
+
     return data
 
 def _version_Information(exe):
-    version_info = []
-    version_info.append(exe.VS_VERSIONINFO.dump_dict())
-
+    version_info = [exe.VS_VERSIONINFO.dump_dict()]
     if hasattr(exe, 'VS_FIXEDFILEINFO'):
         version_info.append(exe.VS_FIXEDFILEINFO.dump_dict())
 
     return version_info
 
 def _export_directory(exe):
-    data = list()
-    data.append(exe.DIRECTORY_ENTRY_EXPORT.struct.dump_dict())
+    data = [exe.DIRECTORY_ENTRY_EXPORT.struct.dump_dict()]
     for export in exe.DIRECTORY_ENTRY_EXPORT.symbols:
-        export_dict = dict()
+        export_dict = {}
         if export.address is not None:
-            export_dict.update({'Ordinal': export.ordinal, 'RVA': export.address, 'Name': export.name})
+            export_dict |= {
+                'Ordinal': export.ordinal,
+                'RVA': export.address,
+                'Name': export.name,
+            }
+
             if export.forwarder:
                 export_dict['forwarder'] = export.forwarder
         data.append(export_dict)
     return data
 
 def _delay_import_directory(exe):
-    data = list()
+    data = []
     for module in exe.DIRECTORY_ENTRY_DELAY_IMPORT:
-        module_list = list()
+        module_list = []
         data['Delay Imported symbols'].append(module_list)
         module_list.append(module.struct.dump_dict())
 
         for symbol in module.imports:
-            symbol_dict = dict()
+            symbol_dict = {'DLL': module.dll}
             if symbol.import_by_ordinal is True:
-                symbol_dict['DLL'] = module.dll
                 symbol_dict['Ordinal'] = symbol.ordinal
             else:
-                symbol_dict['DLL'] = module.dll
                 symbol_dict['Name'] = symbol.name
                 symbol_dict['Hint'] = symbol.hint
 
@@ -233,17 +233,16 @@ def _delay_import_directory(exe):
     return data
 
 def PEInfoRun(obj):
-    data = {}
     try:
         pe = pefile.PE(obj)
     except pefile.PEFormatError as e:
         return e
-  
-    data["HEADERS"] = _headers(pe)
+
+    data = {"HEADERS": _headers(pe)}
     data["Sections"] = _sections(pe)
 
     # data["DllCharacteristics"] = _dll_characteristics_flags(pe)
-    
+
     data["directories"] = {}
     if (hasattr(pe, 'OPTIONAL_HEADER') and hasattr(pe.OPTIONAL_HEADER, 'DATA_DIRECTORY') ):
          data["directories"] = _dataDirectories(pe)
@@ -259,7 +258,7 @@ def PEInfoRun(obj):
     data['Importedsymbols'] = {}
     if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
         data['Importedsymbols'] = _imported_symbols(pe)
-        
+
     data['BoundImports'] = {}
     if hasattr(pe, 'DIRECTORY_ENTRY_BOUND_IMPORT'):
         data['BoundImports'] = _directory_bound_imports(pe)
@@ -271,7 +270,7 @@ def PEInfoRun(obj):
     data['ResourceDirectory'] = {}
     if hasattr(pe, 'DIRECTORY_ENTRY_RESOURCE'):
             data['ResourceDirectory'] = _resources_data_entry(pe)
-            
+
     data['TLS'] = {}
     if ( hasattr(pe, 'DIRECTORY_ENTRY_TLS') and pe.DIRECTORY_ENTRY_TLS and pe.DIRECTORY_ENTRY_TLS.struct ):
             data['TLS'] = pe.DIRECTORY_ENTRY_TLS.struct.dump_dict()

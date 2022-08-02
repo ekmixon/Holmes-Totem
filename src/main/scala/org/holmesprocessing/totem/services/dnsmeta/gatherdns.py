@@ -12,7 +12,7 @@ class GatherDNS:
     def _convert_utf8(self, s):
         """ Decodes string"""
         codecs = ['utf8', 'utf16', 'utf32', 'latin1', 'cp1252', 'ascii']
-        
+
         print(s)
 
         for i in codecs:
@@ -106,15 +106,21 @@ class GatherDNS:
         try:
             result = self.resolver.query(domain, rdtype=rdtype)
         except dns.resolver.NoAnswer:
-            print("%s : The response did not contain a answer for %s." % (rdtype, domain))
+            print(f"{rdtype} : The response did not contain a answer for {domain}.")
         except dns.resolver.NXDOMAIN:
-            print("%s : The query name does not exist for %s." % (rdtype, domain))
+            print(f"{rdtype} : The query name does not exist for {domain}.")
         except dns.resolver.Timeout:
-            print("%s : The query could not be found in the specified lifetime for %s." % (rdtype, domain))
+            print(
+                f"{rdtype} : The query could not be found in the specified lifetime for {domain}."
+            )
+
         except dns.resolver.NoNameservers:
-            print("%s : No non-broken nameservers are available to answer the question using nameserver %s" % (rdtype, domain))
+            print(
+                f"{rdtype} : No non-broken nameservers are available to answer the question using nameserver {domain}"
+            )
+
         else:
-            print("%s : Queried %s successfully!" % (rdtype, domain))
+            print(f"{rdtype} : Queried {domain} successfully!")
             return result
         return None
 
@@ -239,11 +245,10 @@ class GatherDNS:
             rr = rrset[0]
             if rr.rdtype == dns.rdatatype.SOA:
                 return(sub.to_text(), nsserver)
-            else:
-                nsserver = default.query(rr.target).rrset[0].to_text()
-                if last:
-                    self.resolver.nameservers = [nsserver]
-                    return(rr.target.to_text(), nsserver)
+            nsserver = default.query(rr.target).rrset[0].to_text()
+            if last:
+                self.resolver.nameservers = [nsserver]
+                return(rr.target.to_text(), nsserver)
 
             depth += 1
 
@@ -253,9 +258,9 @@ class GatherDNS:
     def query_domain(self, rdtypes):
         # gather the desired rdtypes
         self.data = {rdtype: self._perform_query(self.domain, rdtype) for rdtype in rdtypes}
-        
+
         # remove none values
-        self.data = dict((k,v) for k,v in self.data.items() if v is not None)
+        self.data = {k: v for k,v in self.data.items() if v is not None}
 
 
     def __init__(self, domain, nsserver, timeout=10):

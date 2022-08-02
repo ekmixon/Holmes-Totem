@@ -18,8 +18,7 @@ import json
 def ServiceConfig(filename):
     configPath = filename
     try:
-        config = json.loads(open(configPath).read())
-        return config
+        return json.loads(open(configPath).read())
     except FileNotFoundError:
         raise tornado.web.HTTPError(500)
 
@@ -34,15 +33,12 @@ Metadata = {
 
 
 def DNSMetaRun(domain):
-    data = {}
-
     dnsinfo = gatherdns.GatherDNS(domain, Config["dnsmeta"]["dns_server"])
-    data['auth'] = dnsinfo.find_authoritative_nameserver(domain)
-
+    data = {'auth': dnsinfo.find_authoritative_nameserver(domain)}
     # query for specified types and add to dictionary
     dnsinfo.query_domain(Config["dnsmeta"]["rdtypes"])
     for rdtype in Config["dnsmeta"]["rdtypes"]:
-        function = getattr(dnsinfo, 'get_{}_record'.format(rdtype))
+        function = getattr(dnsinfo, f'get_{rdtype}_record')
         result = function()
         if result is not None:
             data[rdtype] = result

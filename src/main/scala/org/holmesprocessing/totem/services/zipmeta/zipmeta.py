@@ -20,8 +20,7 @@ import json
 def ServiceConfig(filename):
     configPath = filename
     try:
-        config = json.loads(open(configPath).read())
-        return config
+        return json.loads(open(configPath).read())
     except FileNotFoundError:
         raise tornado.web.HTTPError(500)
 
@@ -52,20 +51,20 @@ class ZipMetaProcess(tornado.web.RequestHandler):
             # exclude non-zip
             if len(data) < 4:
                 raise ZipError(400, "Not enough filedata.")
-            
+
             if data[:4].decode('UTF-8') not in [ZipParser.zipLDMagic, ZipParser.zipCDMagic]:
                 raise ZipError(400, "Not a zip file.")
-            
+
             # parse
             parser    = ZipParser(data)
 
             parsedZip = parser.parseZipFile()
             if not parsedZip:
                 raise ZipError(400, "Could not parse file as a zip file")
-            
+
             # clean up
             data.close()
-            
+
             # fetch result
             resultset["filecount"] = len(parsedZip)
             for centralDirectory in parsedZip:
@@ -76,14 +75,14 @@ class ZipMetaProcess(tornado.web.RequestHandler):
                 for name, value in centralDirectory.items():
                     if name == 'ZipExtraField':
                         continue
-                    
+
                     if type(value) is list or type(value) is tuple:
                         for element in value:
                             zipentry[name]=str(element)
-                    
+
                     else:
                         zipentry[name] = str(value)
-                    
+
                 if centralDirectory["ZipExtraField"]:
                     for dictionary in centralDirectory["ZipExtraField"]:
                         zipextra = {}
@@ -97,9 +96,9 @@ class ZipMetaProcess(tornado.web.RequestHandler):
                                 zipextra[name]=str(value)
                 else:
                     zipentry["ZipExtraField"] = "None"
-                
+
                 resultset[zipfilename]= {**zipentry, **zipextra}
-            
+
             self.write(resultset)
         except tornado.web.MissingArgumentError:
             raise tornado.web.HTTPError(400)

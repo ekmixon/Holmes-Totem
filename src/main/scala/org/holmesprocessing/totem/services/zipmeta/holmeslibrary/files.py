@@ -70,8 +70,8 @@ class LargeFileReader (object):
             result -= self.offset
         return result
     
-    def startswith (self, needle):
-        return self[0:len(needle)].decode('UTF-8') == needle
+    def startswith(self, needle):
+        return self[:len(needle)].decode('UTF-8') == needle
     
     # extended slicing
     def __getitem__ (self, key):

@@ -18,8 +18,7 @@ from time import localtime, strftime
 def ServiceConfig(filename):
     configPath = filename
     try:
-        config = json.loads(open(configPath).read())
-        return config
+        return json.loads(open(configPath).read())
     except FileNotFoundError:
         raise tornado.web.HTTPError(500)
 
@@ -39,14 +38,14 @@ def ASNMetaRun(ipaddress):
                                     Config["asnmeta"]["asn_ipv6_query"],
                                     Config["asnmeta"]["asn_peer_query"],
                                     Config["asnmeta"]["asn_name_query"])
-    
+
     asninfo.query_asn_origin()
 
     if asninfo.get_ip_version() == 4:
         asninfo.query_asn_peer()
 
     if asninfo.get_asn_number():
-        asninfo.query_asn_name('AS{}'.format(asninfo.get_asn_number()))
+        asninfo.query_asn_name(f'AS{asninfo.get_asn_number()}')
 
     return asninfo.get_all_known_data()
 

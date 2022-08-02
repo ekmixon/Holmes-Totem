@@ -41,15 +41,21 @@ class GatherASN:
         try:
             result = self.resolver.query(domain, rdtype=rdtype)
         except dns.resolver.NoAnswer:
-            print("%s : The response did not contain a answer for %s." % (rdtype, domain))
+            print(f"{rdtype} : The response did not contain a answer for {domain}.")
         except dns.resolver.NXDOMAIN:
-            print("%s : The query name does not exist for %s." % (rdtype, domain))
+            print(f"{rdtype} : The query name does not exist for {domain}.")
         except dns.resolver.Timeout:
-            print("%s : The query could not be found in the specified lifetime for %s." % (rdtype, domain))
+            print(
+                f"{rdtype} : The query could not be found in the specified lifetime for {domain}."
+            )
+
         except dns.resolver.NoNameservers:
-            print("%s : No non-broken nameservers are available to answer the question using nameserver %s" % (rdtype, domain))
+            print(
+                f"{rdtype} : No non-broken nameservers are available to answer the question using nameserver {domain}"
+            )
+
         else:
-            print("%s : Queried %s successfully!" % (rdtype, domain))
+            print(f"{rdtype} : Queried {domain} successfully!")
             return result
         return None
 

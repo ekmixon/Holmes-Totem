@@ -24,17 +24,16 @@ class ZipParser():
         efParser = extra_field_parse.HeaderIdMapping()
         efMappings = efParser.HeaderIds()
         while extraField:
-            blockMagic = extraField[0:2]
+            blockMagic = extraField[:2]
             blockSize = struct.unpack("<H", extraField[2:4])[0]
             efBlock = extraField[:4+blockSize]
             if blockMagic in efMappings.keys():
                 # Mapping Header Is known (may or may not have been parsed)
                 parser = efMappings[blockMagic]["parseField"]()
-                parsedExtraField.append(parser.parse(efBlock, self.zip64Flag))
             else:
                 # No Header Hits
                 parser = efMappings["Unknown"]["parseField"]()
-                parsedExtraField.append(parser.parse(efBlock, self.zip64Flag))
+            parsedExtraField.append(parser.parse(efBlock, self.zip64Flag))
             extraField = extraField[4+blockSize:]
         return parsedExtraField
 
@@ -59,20 +58,21 @@ class ZipParser():
             offset = zip64["RelativeOffset"]
 
             startPosition = (offset + 30 + self.getFileNameLength())
-            extraField = self.localDirectory[startPosition:(startPosition + self.getExtraFieldLDLength())]
         else:
             startPosition = (self.getRelativeOffset() + 30 + self.getFileNameLength())
-            extraField = self.localDirectory[startPosition:(startPosition + self.getExtraFieldLDLength())]
+        extraField = self.localDirectory[startPosition:(startPosition + self.getExtraFieldLDLength())]
         return self.parseExtraField(extraField)
 
     def getExtraFieldCDLength(self):  # Central Directory
-        length = struct.unpack("<H", self.centralDirectory[30:32])[0]
-        return length
+        return struct.unpack("<H", self.centralDirectory[30:32])[0]
 
     def getExtraFieldLDLength(self):  # Local Directory
-        length = struct.unpack("<H", self.localDirectory[self.getRelativeOffset()
-                                    + 28:self.getRelativeOffset()+30])[0]
-        return length
+        return struct.unpack(
+            "<H",
+            self.localDirectory[
+                self.getRelativeOffset() + 28 : self.getRelativeOffset() + 30
+            ],
+        )[0]
 
     def getModifyDate(self):
         # MS-DOS Epoch
@@ -117,17 +117,17 @@ class ZipParser():
         elif bit in internalNames:
             return internalNames[bit]
         else:
-            return "{} Is An Unknown Internal Attribute".format(bit)
+            return f"{bit} Is An Unknown Internal Attribute"
 
     def getInternalAttributes(self):
         internalAttributes = struct.unpack("<H", self.centralDirectory[36:38])[0]
-        setAttributes = []
-        for bit in range(0, 16):
-            if internalAttributes & (2**bit) > 0:
-                setAttributes.append(self.getInternalAttributeNames(bit))
-        if not setAttributes:
-            return None
-        return setAttributes
+        setAttributes = [
+            self.getInternalAttributeNames(bit)
+            for bit in range(16)
+            if internalAttributes & (2**bit) > 0
+        ]
+
+        return setAttributes or None
 
     def getFileStartDisk(self):
         if struct.unpack("<H", self.centralDirectory[34:36])[0] == 0xFFFF:
@@ -172,10 +172,7 @@ class ZipParser():
             19:     "IBM LZ77 Z",
             98:     "PPMD Version I, Revision 1"
         }
-        if method in compMethods:
-            return compMethods[method]
-        else:
-            return "{} Is An Unknown Compression Method".format(method)
+        return compMethods.get(method, f"{method} Is An Unknown Compression Method")
 
     def getCRC(self):
         return binascii.hexlify(self.centralDirectory[16:20])
@@ -199,20 +196,12 @@ class ZipParser():
             14: "Reserved",
             15: "Reserved"
         }
-        if flag in flagNames:
-            return flagNames[flag]
-        else:
-            return "{} Is An Unknown Flag Name".format(flag)
+        return flagNames.get(flag, f"{flag} Is An Unknown Flag Name")
 
     def getFlags(self):
         flags = struct.unpack("<H", self.centralDirectory[8:10])[0]
-        setFlags = []
-        for i in range(0, 16):
-            if (flags & (2**i)):
-                setFlags.append(self.getFlagNames(i))
-        if not setFlags:
-            return None
-        return setFlags
+        setFlags = [self.getFlagNames(i) for i in range(16) if (flags & (2**i))]
+        return setFlags or None
 
     def getRequiredVersion(self):
         return (struct.unpack("<H", self.centralDirectory[6:8])[0] * .1)
@@ -247,7 +236,7 @@ class ZipParser():
         elif highByte in versionNameDict:
             return versionNameDict[highByte]
         else:
-            return "{} Is An Unknown Version Name".format(highByte)
+            return f"{highByte} Is An Unknown Version Name"
 
     def getVersionMadeBy(self):  # MOD THIS FOR MINOR
         versionBytes = (struct.unpack("<BB", self.centralDirectory[4:6]))
@@ -256,24 +245,23 @@ class ZipParser():
         return 
 
     def parseCentralDirectory(self):
-        centralDirectory = {
-            "VersionMadeBy"             :self.getVersionMadeBy(),
-            "ZipRequiredVersion"        :self.getRequiredVersion(),     # to extract
-            "ZipBitFlag"                :self.getFlags(),
-            "ZipCRC"                    :self.getCRC(),
-            "ZipCompression"            :self.compressionMethodName(),  # method
-            "ZipUncompressedSize"       :self.getUncompressedSize(),
-            "ZipCompressedSize"         :self.getCompressedSize(),
-            "FileStartDisk"             :self.getFileStartDisk(),
-            "InternalAttributes"        :self.getInternalAttributes(),
-            "ExternalAttributes"        :self.getFileExternalAttributes(),
-            "RelativeOffset"            :self.getRelativeOffset(),
-            "ZipFileName"               :self.getFileName().decode('UTF-8'),
-            "ZipModifyDate"             :self.getModifyDate(),
-            "ZipExtraField"             :self.getExtraField(),
-            "ZipComments"               :self.getFileComment()
+        return {
+            "VersionMadeBy": self.getVersionMadeBy(),
+            "ZipRequiredVersion": self.getRequiredVersion(),  # to extract
+            "ZipBitFlag": self.getFlags(),
+            "ZipCRC": self.getCRC(),
+            "ZipCompression": self.compressionMethodName(),  # method
+            "ZipUncompressedSize": self.getUncompressedSize(),
+            "ZipCompressedSize": self.getCompressedSize(),
+            "FileStartDisk": self.getFileStartDisk(),
+            "InternalAttributes": self.getInternalAttributes(),
+            "ExternalAttributes": self.getFileExternalAttributes(),
+            "RelativeOffset": self.getRelativeOffset(),
+            "ZipFileName": self.getFileName().decode('UTF-8'),
+            "ZipModifyDate": self.getModifyDate(),
+            "ZipExtraField": self.getExtraField(),
+            "ZipComments": self.getFileComment(),
         }
-        return centralDirectory
 
     def parseZipFile(self):
         # Because a central directory is an extended version of a local
@@ -294,14 +282,11 @@ class ZipParser():
 #***************************END**DIRECTORY**PARSING*****************************
 
     def getHeaderSignature(self):
-        return self.data[0:4]
+        return self.data[:4]
 
     def getCDComment(self):
         comment = self.endDirectory[22:22 + self.getCDCommentLength()]
-        if not comment:
-            return None
-        else:
-            return comment
+        return comment or None
 
     def getCDCommentLength(self):
         return struct.unpack("<H", self.endDirectory[20:22])[0]
@@ -327,16 +312,15 @@ class ZipParser():
     def parseEndDirectory(self):
         start = self.data.find(b'\x50\x4b\x05\x06')
         self.endDirectory = self.data.subfile(start)
-        endDirectoryDict = {
-            "NumberOfDisk"     : self.getNumberOfDisk(),
-            "StartOfCDDisk"    : self.getStartOfCDDisk(),
-            "NumberOfCDs"      : self.getNumberOfCDs(),
-            "TotalNumberofCDs" : self.getTotalNumberOfCDs(),
-            "CDSize"           : self.getSizeOfCD(),
-            "CDStartOffset"    : self.getCDStartOffset(),
-            "Comment"          : self.getCDComment()
+        return {
+            "NumberOfDisk": self.getNumberOfDisk(),
+            "StartOfCDDisk": self.getStartOfCDDisk(),
+            "NumberOfCDs": self.getNumberOfCDs(),
+            "TotalNumberofCDs": self.getTotalNumberOfCDs(),
+            "CDSize": self.getSizeOfCD(),
+            "CDStartOffset": self.getCDStartOffset(),
+            "Comment": self.getCDComment(),
         }
-        return endDirectoryDict
 
 #***********************END**DIRECTORY**PARSING**ENDS***************************
 
